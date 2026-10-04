@@ -189,5 +189,6 @@ export class CausalExplanationComponent {
       ids.push(event.sourceSpeciesId);
     }
     this.sim.highlightSpecies(ids);
+    this.sim.activeCausalEventId.set(event.id);
   }
 }

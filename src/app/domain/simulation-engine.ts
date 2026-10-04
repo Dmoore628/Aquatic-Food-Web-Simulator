@@ -3,8 +3,10 @@ import {
   SpeciesId,
   EnvironmentalParameters,
   SimulationStepRecord,
-  CausalChainEvent
+  CausalChainEvent,
+  TrophicTierSummary
 } from './models';
+import { CausalAnalyzer } from './causal-analyzer';
 
 export class SimulationEngine {
   /**
@@ -200,201 +202,53 @@ export class SimulationEngine {
     env: EnvironmentalParameters,
     initialOverrides?: Partial<Record<SpeciesId, number>>
   ): CausalChainEvent[] {
-    if (history.length === 0) return [];
+    return CausalAnalyzer.traceCausalChain(history, speciesMap, env, initialOverrides);
+  }
 
-    const events: CausalChainEvent[] = [];
-    const latest = history[history.length - 1];
-    const initial = history[0];
+  /**
+   * Computes biomass aggregated by ecological trophic tier for Lindeman pyramid analysis.
+   */
+  public static computeTrophicTiers(
+    currentPops: Record<SpeciesId, number>,
+    basePops: Record<SpeciesId, number>
+  ): TrophicTierSummary[] {
+    const tierDefs = [
+      { tier: 5, name: 'Apex Predators', category: 'apex_predator' as const, speciesIds: ['apex_shark'] as SpeciesId[] },
+      { tier: 4, name: 'Tertiary Consumers', category: 'tertiary_consumer' as const, speciesIds: ['predatory_fish', 'marine_bird', 'marine_mammal'] as SpeciesId[] },
+      { tier: 3, name: 'Secondary Consumers', category: 'secondary_consumer' as const, speciesIds: ['forage_fish', 'crustaceans'] as SpeciesId[] },
+      { tier: 2, name: 'Primary Consumers', category: 'primary_consumer' as const, speciesIds: ['zooplankton', 'benthic_bivalves'] as SpeciesId[] },
+      { tier: 1, name: 'Primary Producers', category: 'primary_producer' as const, speciesIds: ['phytoplankton'] as SpeciesId[] },
+      { tier: 0, name: 'Benthic Decomposers', category: 'decomposer' as const, speciesIds: ['benthic_decomposers'] as SpeciesId[] }
+    ];
 
-    // 1. Identify direct user perturbations (initial step alterations)
-    if (initialOverrides) {
-      for (const [rawId, overridePop] of Object.entries(initialOverrides)) {
-        const id = rawId as SpeciesId;
-        const sp = speciesMap.get(id);
-        if (!sp) continue;
-
-        if (overridePop === 0) {
-          events.push({
-            id: `direct-extirpation-${id}`,
-            stepObserved: 0,
-            targetSpeciesId: id,
-            relationship: 'direct_perturbation',
-            headline: `${sp.commonName} removed from ecosystem`,
-            explanation: `User simulation disturbance: ${sp.commonName} (${sp.scientificName}) population was reduced to zero at t=0 to evaluate trophic consequences.`,
-            percentChange: -100,
-            direction: 'extinct',
-            severity: 'critical'
-          });
-        } else if (typeof overridePop === 'number' && overridePop < 60) {
-          events.push({
-            id: `direct-reduction-${id}`,
-            stepObserved: 0,
-            targetSpeciesId: id,
-            relationship: 'direct_perturbation',
-            headline: `${sp.commonName} depleted by direct intervention`,
-            explanation: `${sp.commonName} population was manually suppressed to ${overridePop} units (${overridePop - 100}% of baseline).`,
-            percentChange: overridePop - 100,
-            direction: 'decreased',
-            severity: 'moderate'
-          });
-        } else if (typeof overridePop === 'number' && overridePop > 120) {
-          events.push({
-            id: `direct-boost-${id}`,
-            stepObserved: 0,
-            targetSpeciesId: id,
-            relationship: 'direct_perturbation',
-            headline: `${sp.commonName} population augmented`,
-            explanation: `${sp.commonName} stock was enhanced to ${overridePop} units to simulate conservation reintroduction.`,
-            percentChange: overridePop - 100,
-            direction: 'increased',
-            severity: 'moderate'
-          });
-        }
-      }
+    let totalEcosystemBiomass = 0;
+    for (const pop of Object.values(currentPops)) {
+      totalEcosystemBiomass += pop;
     }
+    const safeTotal = Math.max(1, totalEcosystemBiomass);
 
-    // 2. Identify abiotic environmental drivers
-    if (env.fishingPressure > 0.5) {
-      events.push({
-        id: 'abiotic-fishing',
-        stepObserved: 0,
-        targetSpeciesId: 'predatory_fish',
-        relationship: 'environmental_stress',
-        headline: 'Heavy commercial harvest pressure active',
-        explanation: `Commercial fishing mortality coefficient is set to ${env.fishingPressure}x, disproportionately removing high-trophic finfish (Striped Bass) and forage fish.`,
-        percentChange: -Math.round(env.fishingPressure * 25),
-        direction: 'decreased',
-        severity: env.fishingPressure > 1.2 ? 'critical' : 'moderate'
-      });
-    }
+    return tierDefs.map((def) => {
+      let tierCurrentBiomass = 0;
+      let tierBaselineBiomass = 0;
 
-    if (env.nutrientAvailability < 0.7) {
-      events.push({
-        id: 'abiotic-nutrient-depletion',
-        stepObserved: 0,
-        targetSpeciesId: 'phytoplankton',
-        relationship: 'nutrient_limitation',
-        headline: 'Nutrient availability reduced',
-        explanation: `Dissolved nitrate and phosphate levels restricted to ${(env.nutrientAvailability * 100).toFixed(0)}% of normal upwelling capacity, constraining primary production carrying capacity.`,
-        percentChange: -Math.round((1 - env.nutrientAvailability) * 100),
-        direction: 'decreased',
-        severity: 'moderate'
-      });
-    }
-
-    if (Math.abs(env.waterTempAnomaly) >= 2.0) {
-      events.push({
-        id: 'abiotic-temperature-anomaly',
-        stepObserved: 0,
-        targetSpeciesId: 'zooplankton',
-        relationship: 'environmental_stress',
-        headline: `Water temperature anomaly of ${env.waterTempAnomaly > 0 ? '+' : ''}${env.waterTempAnomaly.toFixed(1)}°C active`,
-        explanation: `Severe thermal displacement increases metabolic costs for cold-adapted pelagic copepods (Calanus finmarchicus) and coastal pinnipeds.`,
-        percentChange: -30,
-        direction: 'decreased',
-        severity: 'moderate'
-      });
-    }
-
-    // 3. Trace food-web links for significant cascading population changes
-    for (const [id, sp] of speciesMap.entries()) {
-      const latestPop = latest.populations[id] || 0;
-      const baselinePop = initial.populations[id] || 100;
-      const pctDelta = ((latestPop - baselinePop) / baselinePop) * 100;
-
-      // Skip negligible changes (< 15%)
-      if (Math.abs(pctDelta) < 15 && latestPop > 0) continue;
-
-      // Check: Was this caused by a predator declining? (Predation release / mesopredator release)
-      for (const predId of sp.predatorIds) {
-        const predLatest = latest.populations[predId] || 0;
-        const predBase = initial.populations[predId] || 100;
-        const predDelta = ((predLatest - predBase) / predBase) * 100;
-
-        if (predDelta <= -40 && pctDelta > 15) {
-          const predSp = speciesMap.get(predId);
-          const isMesopredator =
-            sp.trophicLevel >= 3.5 &&
-            sp.trophicLevel < 4.5 &&
-            !!predSp &&
-            predSp.trophicLevel >= 4.5;
-
-          events.push({
-            id: `cascade-release-${predId}-to-${id}`,
-            stepObserved: Math.min(latest.step, 10),
-            sourceSpeciesId: predId,
-            targetSpeciesId: id,
-            relationship: isMesopredator ? 'mesopredator_release' : 'predation_release',
-            headline: isMesopredator
-              ? `Mesopredator release: ${sp.commonName} surged`
-              : `Predation release: ${sp.commonName} population expanded`,
-            explanation: `With its primary predator ${predSp?.commonName || predId} severely depleted (${predDelta.toFixed(0)}%), top-down mortality on ${sp.commonName} dropped sharply, allowing its numbers to climb by +${pctDelta.toFixed(0)}%.`,
-            percentChange: Number(pctDelta.toFixed(0)),
-            direction: 'increased',
-            severity: 'moderate'
-          });
-          break;
-        }
+      for (const spId of def.speciesIds) {
+        tierCurrentBiomass += currentPops[spId] ?? 0;
+        tierBaselineBiomass += basePops[spId] ?? 100;
       }
 
-      // Check: Was this caused by a predator exploding? (Overgrazing / top-down suppression)
-      let predatorSurgeFound = false;
-      for (const predId of sp.predatorIds) {
-        const predLatest = latest.populations[predId] || 0;
-        const predBase = initial.populations[predId] || 100;
-        const predDelta = ((predLatest - predBase) / predBase) * 100;
+      const diff = tierCurrentBiomass - tierBaselineBiomass;
+      const pct = tierBaselineBiomass > 0 ? (diff / tierBaselineBiomass) * 100 : 0;
 
-        if (predDelta >= 25 && pctDelta <= -20) {
-          const predSp = speciesMap.get(predId);
-          events.push({
-            id: `cascade-overgrazing-${predId}-to-${id}`,
-            stepObserved: Math.min(latest.step, 15),
-            sourceSpeciesId: predId,
-            targetSpeciesId: id,
-            relationship: 'overgrazing',
-            headline: `Top-down overgrazing: ${sp.commonName} declined`,
-            explanation: `An over-abundant population of ${predSp?.commonName || predId} (+${predDelta.toFixed(0)}%) exerted heightened consumption pressure, depressing ${sp.commonName} by ${pctDelta.toFixed(0)}%.`,
-            percentChange: Number(pctDelta.toFixed(0)),
-            direction: latestPop <= 0 ? 'extinct' : 'decreased',
-            severity: latestPop <= 0 ? 'critical' : 'moderate'
-          });
-          predatorSurgeFound = true;
-          break;
-        }
-      }
-
-      // Check: Was this caused by prey collapse? (Bottom-up predator starvation)
-      if (pctDelta <= -20 && !predatorSurgeFound && sp.preyIds.length > 0) {
-        for (const preyId of sp.preyIds) {
-          const preyLatest = latest.populations[preyId] || 0;
-          const preyBase = initial.populations[preyId] || 100;
-          const preyDelta = ((preyLatest - preyBase) / preyBase) * 100;
-
-          if (preyDelta <= -35) {
-            const preySp = speciesMap.get(preyId);
-            events.push({
-              id: `cascade-starvation-${preyId}-to-${id}`,
-              stepObserved: Math.min(latest.step, 20),
-              sourceSpeciesId: preyId,
-              targetSpeciesId: id,
-              relationship: 'predator_starvation',
-              headline: `Food scarcity: ${sp.commonName} declined due to prey loss`,
-              explanation: `The depletion of foundational prey ${preySp?.commonName || preyId} (${preyDelta.toFixed(0)}%) left ${sp.commonName} without sufficient caloric intake, forcing a ${pctDelta.toFixed(0)}% population drop.`,
-              percentChange: Number(pctDelta.toFixed(0)),
-              direction: latestPop <= 0 ? 'extinct' : 'decreased',
-              severity: 'moderate'
-            });
-            break;
-          }
-        }
-      }
-    }
-
-    // Sort events logically: direct perturbations first, then cascading consequences by step
-    return events.sort((a, b) => {
-      if (a.relationship === 'direct_perturbation') return -1;
-      if (b.relationship === 'direct_perturbation') return 1;
-      return a.stepObserved - b.stepObserved;
+      return {
+        tier: def.tier,
+        name: def.name,
+        category: def.category,
+        speciesIds: def.speciesIds,
+        totalBiomass: Number(tierCurrentBiomass.toFixed(1)),
+        baselineBiomass: Number(tierBaselineBiomass.toFixed(1)),
+        percentChange: Number(pct.toFixed(1)),
+        fractionOfEcosystem: Number((tierCurrentBiomass / safeTotal).toFixed(3))
+      };
     });
   }
 }

@@ -5,7 +5,8 @@ import {
   SimulationStepRecord,
   EnvironmentalParameters,
   CausalChainEvent,
-  EcosystemScenario
+  EcosystemScenario,
+  TrophicTierSummary
 } from '../domain/models';
 import {
   SPECIES_REGISTRY,
@@ -47,6 +48,7 @@ export class SimulationStateService {
   readonly selectedSpeciesId = signal<SpeciesId | null>(null);
   readonly highlightedSpeciesIds = signal<Set<SpeciesId>>(new Set());
   readonly hoveredSpeciesId = signal<SpeciesId | null>(null);
+  readonly activeCausalEventId = signal<string | null>(null);
 
   // Chart visibility filters
   readonly visibleChartSpecies = signal<Set<SpeciesId>>(
@@ -108,6 +110,13 @@ export class SimulationStateService {
       this.environment(),
       scenario?.initialPopulationOverrides
     );
+  });
+
+  // Trophic Tier distribution (Pyramid of Biomass)
+  readonly trophicTiers = computed<TrophicTierSummary[]>(() => {
+    const currentPops = this.currentPopulations();
+    const basePops = this.initialPopulations();
+    return SimulationEngine.computeTrophicTiers(currentPops, basePops);
   });
 
   // Ecosystem overall health evaluation

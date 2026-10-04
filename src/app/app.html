@@ -1,137 +1,152 @@
-<div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-  <!-- Application Header -->
+<div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-slate-800">
+  <!-- Minimalist Brand Header -->
   <app-header></app-header>
 
-  <!-- Real-time Vital Metrics Bar -->
-  <app-metrics-bar></app-metrics-bar>
+  <!-- Central Laboratory Viewport (Spacious & Focused) -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-5 flex flex-col gap-5">
+    <!-- Dominant Primary Command & High-Signal Status Strip -->
+    <app-metrics-bar></app-metrics-bar>
 
-  <!-- Main Content Layout -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-6">
-    <!-- Active Scenario Overview Banner (if scenario selected) -->
+    <!-- Active Scenario Context (Quiet & Focused single row) -->
     @if (scenario(); as sc) {
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div class="space-y-1">
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
-              Active Scenario: {{ sc.category.replace('_', ' ') }}
-            </span>
-            <h2 class="text-sm font-bold text-slate-100 tracking-wide">
-              {{ sc.title }}
-            </h2>
-          </div>
-          <p class="text-xs text-slate-300 leading-relaxed max-w-3xl">
-            <strong>Question:</strong> {{ sc.question }}
-          </p>
-          <p class="text-xs text-slate-400 leading-relaxed max-w-3xl">
-            <strong>Hypothesis:</strong> {{ sc.hypothesis }}
-          </p>
+      <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/80 font-semibold">
+            {{ sc.category.replace('_', ' ') }}
+          </span>
+          <span class="font-bold text-slate-200">{{ sc.title }}:</span>
+          <span class="text-slate-400 hidden md:inline truncate max-w-xl">{{ sc.hypothesis }}</span>
         </div>
 
-        <div class="flex items-center gap-2 self-start lg:self-center">
-          <button
-            type="button"
-            (click)="sim.togglePlay()"
-            [class]="sim.isPlaying()
-              ? 'px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-2 transition-colors'
-              : 'px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-2 transition-colors'"
-          >
-            <mat-icon class="text-base">{{ sim.isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
-            <span>{{ sim.isPlaying() ? 'Pause Simulation' : 'Run Simulation' }}</span>
-          </button>
-
-          <button
-            type="button"
-            (click)="sim.reset()"
-            class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs flex items-center gap-1.5 transition-colors"
-          >
-            <mat-icon class="text-base">restart_alt</mat-icon>
-            <span>Reset</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          (click)="sim.loadScenario('baseline')"
+          class="text-slate-400 hover:text-slate-200 underline text-[11px] self-start sm:self-center"
+        >
+          Return to Baseline
+        </button>
       </div>
     }
 
-    <!-- 2-Column Responsive Laboratory Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      <!-- Left Column: Food-Web Visualization & Population Trajectory Chart (7 Cols) -->
-      <div class="lg:col-span-7 flex flex-col gap-6">
-        <!-- Interactive Food Web SVG Graph -->
-        <app-food-web-graph></app-food-web-graph>
+    <!-- Primary Canvas: The Hero Food-Web Graph -->
+    <section class="w-full">
+      <app-food-web-graph></app-food-web-graph>
+    </section>
 
-        <!-- Population Trajectory Chart -->
-        <app-population-chart></app-population-chart>
-      </div>
-
-      <!-- Right Column: Causal Cascade Inspector & Perturbation Controls (5 Cols) -->
-      <div class="lg:col-span-5 flex flex-col gap-4">
-        <!-- Tab Switcher: Causal Inspector vs. Perturbations -->
-        <div class="flex items-center gap-1 p-1 bg-slate-900 border border-slate-800 rounded-lg">
+    <!-- Progressive Disclosure Action Tray & Alerts -->
+    <section class="flex flex-col gap-3">
+      <!-- Causal Cascade Alert Banner (Only appears when perturbations occur) -->
+      @if (hasActiveDisturbance() && activeDrawer() !== 'causal') {
+        <div class="bg-cyan-950/40 border border-cyan-800/60 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2 text-cyan-200">
+            <mat-icon class="text-cyan-400 text-sm">schema</mat-icon>
+            <span>
+              <strong>Cascade Triggered:</strong> {{ sim.causalEvents().length }} domino trophic interactions detected.
+            </span>
+          </div>
           <button
             type="button"
-            (click)="rightTab.set('causal')"
-            [class]="rightTab() === 'causal'
-              ? 'flex-1 py-1.5 px-3 rounded-md bg-slate-800 text-cyan-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors'
-              : 'flex-1 py-1.5 px-3 rounded-md text-slate-400 hover:text-slate-200 text-xs flex items-center justify-center gap-1.5 transition-colors'"
+            (click)="toggleDrawer('causal')"
+            class="px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1 transition-colors"
+          >
+            <span>Inspect Causal Chain</span>
+            <mat-icon class="text-xs">arrow_forward</mat-icon>
+          </button>
+        </div>
+      }
+
+      <!-- Secondary Tools Navigation Strip (Quiet & Grounded) -->
+      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-900 pt-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Causal Chain Toggle -->
+          <button
+            type="button"
+            (click)="toggleDrawer('causal')"
+            [class]="activeDrawer() === 'causal'
+              ? 'px-3 py-1.5 rounded-lg bg-slate-800 text-cyan-300 font-semibold text-xs border border-slate-700 flex items-center gap-1.5 transition-colors'
+              : 'px-3 py-1.5 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs border border-slate-800/80 flex items-center gap-1.5 transition-colors'"
           >
             <mat-icon class="text-sm">schema</mat-icon>
             <span>Causal Inspector</span>
             @if (sim.causalEvents().length > 0) {
-              <span class="w-4 h-4 rounded-full bg-cyan-900 text-cyan-300 text-[10px] font-mono flex items-center justify-center">
+              <span class="px-1.5 py-0.2 rounded-full bg-cyan-950 text-cyan-300 font-mono text-[10px]">
                 {{ sim.causalEvents().length }}
               </span>
             }
           </button>
 
+          <!-- Trajectory Chart Toggle -->
           <button
             type="button"
-            (click)="rightTab.set('controls')"
-            [class]="rightTab() === 'controls'
-              ? 'flex-1 py-1.5 px-3 rounded-md bg-slate-800 text-cyan-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors'
-              : 'flex-1 py-1.5 px-3 rounded-md text-slate-400 hover:text-slate-200 text-xs flex items-center justify-center gap-1.5 transition-colors'"
+            (click)="toggleDrawer('chart')"
+            [class]="activeDrawer() === 'chart'
+              ? 'px-3 py-1.5 rounded-lg bg-slate-800 text-cyan-300 font-semibold text-xs border border-slate-700 flex items-center gap-1.5 transition-colors'
+              : 'px-3 py-1.5 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs border border-slate-800/80 flex items-center gap-1.5 transition-colors'"
+          >
+            <mat-icon class="text-sm">show_chart</mat-icon>
+            <span>Population Trajectories</span>
+          </button>
+
+          <!-- Lindeman Pyramid Toggle -->
+          <button
+            type="button"
+            (click)="toggleDrawer('pyramid')"
+            [class]="activeDrawer() === 'pyramid'
+              ? 'px-3 py-1.5 rounded-lg bg-slate-800 text-cyan-300 font-semibold text-xs border border-slate-700 flex items-center gap-1.5 transition-colors'
+              : 'px-3 py-1.5 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs border border-slate-800/80 flex items-center gap-1.5 transition-colors'"
+          >
+            <mat-icon class="text-sm">stacked_bar_chart</mat-icon>
+            <span>Biomass Pyramid</span>
+          </button>
+
+          <!-- Environmental Variables Toggle -->
+          <button
+            type="button"
+            (click)="toggleDrawer('controls')"
+            [class]="activeDrawer() === 'controls'
+              ? 'px-3 py-1.5 rounded-lg bg-slate-800 text-cyan-300 font-semibold text-xs border border-slate-700 flex items-center gap-1.5 transition-colors'
+              : 'px-3 py-1.5 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs border border-slate-800/80 flex items-center gap-1.5 transition-colors'"
           >
             <mat-icon class="text-sm">tune</mat-icon>
-            <span>Perturbations & Variables</span>
+            <span>Environmental Variables</span>
           </button>
         </div>
 
-        <!-- Tab 1: Causal Chain Inspector -->
-        @if (rightTab() === 'causal') {
-          <app-causal-explanation></app-causal-explanation>
+        @if (activeDrawer() !== null) {
+          <button
+            type="button"
+            (click)="closeDrawer()"
+            class="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1"
+          >
+            <span>Collapse Tool</span>
+            <mat-icon class="text-xs">expand_less</mat-icon>
+          </button>
         }
-
-        <!-- Tab 2: Perturbations Laboratory -->
-        @if (rightTab() === 'controls') {
-          <app-controls-panel></app-controls-panel>
-        }
-
-        <!-- Contextual Help / Key Principle Callout -->
-        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-400 space-y-2">
-          <div class="flex items-center gap-2 text-slate-200 font-semibold">
-            <mat-icon class="text-cyan-400 text-base">lightbulb</mat-icon>
-            <span>Laboratory Objective</span>
-          </div>
-          <p class="leading-relaxed">
-            Change a population in the graph or perturbation panel, run the simulation, and observe how disturbances propagate up and down through the food web.
-          </p>
-          <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
-            <span class="text-slate-500">Need theoretical background?</span>
-            <button
-              type="button"
-              (click)="sim.openConceptModal('trophic_cascade')"
-              class="text-cyan-400 hover:underline font-medium inline-flex items-center gap-0.5"
-            >
-              <span>Explore Trophic Cascades</span>
-              <mat-icon class="text-xs">arrow_forward</mat-icon>
-            </button>
-          </div>
-        </div>
       </div>
-    </div>
+
+      <!-- Expanded Secondary Tool Workspace (Full width, room to breathe) -->
+      @if (activeDrawer(); as tool) {
+        <div class="mt-2 animate-in fade-in duration-200">
+          @if (tool === 'causal') {
+            <app-causal-explanation></app-causal-explanation>
+          }
+          @if (tool === 'chart') {
+            <app-population-chart></app-population-chart>
+          }
+          @if (tool === 'pyramid') {
+            <app-trophic-pyramid></app-trophic-pyramid>
+          }
+          @if (tool === 'controls') {
+            <app-controls-panel></app-controls-panel>
+          }
+        </div>
+      }
+    </section>
   </main>
 
-  <!-- Footer -->
+  <!-- Quiet Scientific Footer -->
   <footer class="border-t border-slate-900 bg-slate-950 py-4 px-4 text-center text-xs text-slate-500 mt-auto">
-    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
       <p>
         Aquatic Food-Web Simulator • Coastal Northwest Atlantic Educational Ecological Model
       </p>

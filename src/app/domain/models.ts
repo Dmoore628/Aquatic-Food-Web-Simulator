@@ -124,3 +124,21 @@ export interface EducationalConcept {
   aquaticExample: string;
   simulatorRelevance: string;
 }
+
+export interface TrophicTierSummary {
+  tier: number;
+  name: string;
+  category: TrophicLevelCategory;
+  speciesIds: SpeciesId[];
+  totalBiomass: number;
+  baselineBiomass: number;
+  percentChange: number;
+  fractionOfEcosystem: number;
+}
+
+export interface PerturbationEvent {
+  step: number;
+  description: string;
+  targetId?: SpeciesId;
+  type: 'species_modification' | 'environmental_shift' | 'scenario_load';
+}
