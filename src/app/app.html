@@ -7,27 +7,6 @@
     <!-- Dominant Primary Command & High-Signal Status Strip -->
     <app-metrics-bar></app-metrics-bar>
 
-    <!-- Active Scenario Context (Quiet & Focused single row) -->
-    @if (scenario(); as sc) {
-      <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-        <div class="flex items-center gap-2">
-          <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/80 font-semibold">
-            {{ sc.category.replace('_', ' ') }}
-          </span>
-          <span class="font-bold text-slate-200">{{ sc.title }}:</span>
-          <span class="text-slate-400 hidden md:inline truncate max-w-xl">{{ sc.hypothesis }}</span>
-        </div>
-
-        <button
-          type="button"
-          (click)="sim.loadScenario('baseline')"
-          class="text-slate-400 hover:text-slate-200 underline text-[11px] self-start sm:self-center"
-        >
-          Return to Baseline
-        </button>
-      </div>
-    }
-
     <!-- Primary Canvas: The Hero Food-Web Graph -->
     <section class="w-full">
       <app-food-web-graph></app-food-web-graph>

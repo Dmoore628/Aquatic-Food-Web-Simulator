@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { SimulationStateService } from '../services/simulation-state';
 
@@ -7,21 +7,81 @@ import { SimulationStateService } from '../services/simulation-state';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MatIconModule],
   template: `
-    <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 shadow-sm">
-      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <!-- Dominant Primary Actions -->
-        <div class="flex flex-wrap items-center gap-2.5">
-          <!-- Primary Dominant Action: Run / Pause -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3.5 shadow-sm">
+      <!-- 1-Click Quick Experiment Presets (Immediate intuitive entry point) -->
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          Quick Experiments:
+        </span>
+
+        <div class="flex flex-wrap items-center gap-1.5 text-xs">
+          <button
+            type="button"
+            (click)="sim.loadScenario('baseline')"
+            [class]="sim.activeScenarioId() === 'baseline'
+              ? 'px-3 py-1 rounded-lg bg-cyan-500 text-slate-950 font-bold border border-cyan-400 transition-colors'
+              : 'px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors'"
+          >
+            Equilibrium (Baseline)
+          </button>
+
+          <button
+            type="button"
+            (click)="sim.loadScenario('apex_removal')"
+            [class]="sim.activeScenarioId() === 'apex_removal'
+              ? 'px-3 py-1 rounded-lg bg-red-500 text-white font-bold border border-red-400 transition-colors'
+              : 'px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors'"
+          >
+            Remove Shark (Apex)
+          </button>
+
+          <button
+            type="button"
+            (click)="sim.loadScenario('targeted_overfishing')"
+            [class]="sim.activeScenarioId() === 'targeted_overfishing'
+              ? 'px-3 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold border border-amber-400 transition-colors'
+              : 'px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors'"
+          >
+            Overfish Striped Bass
+          </button>
+
+          <button
+            type="button"
+            (click)="sim.loadScenario('reduced_primary_production')"
+            [class]="sim.activeScenarioId() === 'reduced_primary_production'
+              ? 'px-3 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold border border-emerald-400 transition-colors'
+              : 'px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors'"
+          >
+            Plankton Collapse
+          </button>
+
+          <button
+            type="button"
+            (click)="sim.loadScenario('marine_heatwave')"
+            [class]="sim.activeScenarioId() === 'marine_heatwave'
+              ? 'px-3 py-1 rounded-lg bg-sky-500 text-slate-950 font-bold border border-sky-400 transition-colors'
+              : 'px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors'"
+          >
+            Heatwave (+3.2°C)
+          </button>
+        </div>
+      </div>
+
+      <!-- Primary Action Controls & Clear Status Summary -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <!-- Main Controls -->
+        <div class="flex items-center gap-2.5">
+          <!-- Primary Dominant Action Button -->
           <button
             type="button"
             (click)="sim.togglePlay()"
             [class]="sim.isPlaying()
-              ? 'h-10 px-5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-colors'
-              : 'h-10 px-6 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-colors ring-2 ring-cyan-400/20'"
+              ? 'h-10 px-5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-colors'
+              : 'h-10 px-6 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-colors shadow-sm'"
             [attr.aria-label]="sim.isPlaying() ? 'Pause Simulation' : 'Run Simulation'"
           >
             <mat-icon class="text-base">{{ sim.isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
-            <span>{{ sim.isPlaying() ? 'Pause Simulation' : 'Run Simulation' }}</span>
+            <span>{{ sim.isPlaying() ? 'Pause' : 'Run Simulation' }}</span>
           </button>
 
           <!-- Advance 1 Step -->
@@ -29,118 +89,48 @@ import { SimulationStateService } from '../services/simulation-state';
             type="button"
             (click)="sim.stepForward()"
             [disabled]="sim.isPlaying() || sim.currentStep() >= sim.maxSteps"
-            class="h-10 px-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition-colors"
+            class="h-10 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition-colors"
             title="Advance 1 Time Step (t+1)"
           >
             <mat-icon class="text-base">skip_next</mat-icon>
             <span>Step</span>
           </button>
 
-          <!-- Reset to t=0 -->
+          <!-- Reset -->
           <button
             type="button"
             (click)="sim.reset()"
-            class="h-10 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 border border-slate-700 transition-colors"
-            title="Reset simulation to initial baseline"
+            class="h-10 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 border border-slate-700 transition-colors"
+            title="Reset simulation to initial step"
           >
             <mat-icon class="text-base">restart_alt</mat-icon>
             <span>Reset</span>
           </button>
 
-          <div class="h-5 w-px bg-slate-800 hidden sm:block"></div>
+          <div class="h-6 w-px bg-slate-800 mx-1 hidden sm:block"></div>
 
-          <!-- Step Progression Badge -->
-          <div class="flex items-center gap-2 font-mono text-xs text-slate-400 bg-slate-950 px-3 py-2 rounded-lg border border-slate-800">
-            <span class="text-slate-400">TIMELINE:</span>
-            <span class="text-cyan-400 font-bold">t={{ sim.currentStep() }}</span>
-            <span class="text-slate-600">/</span>
+          <!-- Step Counter -->
+          <div class="font-mono text-xs text-slate-400 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800">
+            <span>STEP </span>
+            <strong class="text-cyan-400">{{ sim.currentStep() }}</strong>
+            <span class="text-slate-600"> / </span>
             <span>{{ sim.maxSteps }}</span>
           </div>
         </div>
 
-        <!-- The One Calm, High-Signal Status Line -->
-        <div class="flex items-center justify-between lg:justify-end gap-3 flex-1">
-          <div class="flex items-center gap-2 text-xs truncate max-w-xl">
-            <span class="w-2.5 h-2.5 rounded-full shrink-0" [class]="statusDotClass()"></span>
-            <span class="font-semibold text-slate-200 truncate">
-              {{ sim.ecosystemHealth().label }}:
-            </span>
-            <span class="text-slate-400 truncate">
-              {{ sim.ecosystemHealth().detail }}
-            </span>
-          </div>
-
-          <!-- Detailed Metrics Drawer Toggle -->
-          <button
-            type="button"
-            (click)="showMetricsDetails.set(!showMetricsDetails())"
-            class="px-2.5 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-mono border border-slate-800 flex items-center gap-1 shrink-0 transition-colors"
-            title="Toggle Detailed Ecological Metrics"
-          >
-            <span>{{ showMetricsDetails() ? 'Hide Metrics' : 'Metrics' }}</span>
-            <mat-icon class="text-xs">{{ showMetricsDetails() ? 'expand_less' : 'expand_more' }}</mat-icon>
-          </button>
+        <!-- The One Calm, High-Signal Status Summary -->
+        <div class="flex items-center gap-2 text-xs">
+          <span class="w-2.5 h-2.5 rounded-full shrink-0" [class]="statusDotClass()"></span>
+          <span class="text-slate-200 font-medium">
+            {{ plainEnglishStatus() }}
+          </span>
         </div>
       </div>
-
-      <!-- Progressive Disclosure: Detailed Metrics Summary Drawer (Collapsed by default) -->
-      @if (showMetricsDetails()) {
-        <div class="mt-3 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs font-mono">
-          <div class="flex items-baseline gap-2">
-            <span class="text-slate-400">TOTAL BIOMASS:</span>
-            <span class="font-bold text-slate-100">{{ currentBiomass() }}</span>
-            <span [class]="biomassDeltaClass()">{{ biomassDeltaText() }}</span>
-          </div>
-
-          <div class="flex items-baseline gap-2">
-            <span class="text-slate-400">SHANNON DIVERSITY (H'):</span>
-            <span class="font-bold text-slate-100">{{ currentDiversity() }}</span>
-          </div>
-
-          <div class="flex items-baseline gap-2">
-            <span class="text-slate-400">EXTIRPATIONS:</span>
-            <span class="font-bold" [class]="extinctCount() > 0 ? 'text-red-400' : 'text-slate-200'">
-              {{ extinctCount() }} / 10 species
-            </span>
-          </div>
-
-          <div class="flex items-baseline gap-2">
-            <span class="text-slate-400">ABIOTIC STRESS:</span>
-            <span class="text-slate-300">
-              Temp {{ sim.environment().waterTempAnomaly > 0 ? '+' : '' }}{{ sim.environment().waterTempAnomaly }}°C •
-              Nutrients {{ (sim.environment().nutrientAvailability * 100).toFixed(0) }}% •
-              Harvest {{ sim.environment().fishingPressure.toFixed(1) }}x
-            </span>
-          </div>
-        </div>
-      }
     </div>
   `
 })
 export class MetricsBarComponent {
   readonly sim = inject(SimulationStateService);
-
-  readonly showMetricsDetails = signal<boolean>(false);
-
-  readonly currentBiomass = computed(() => {
-    const rec = this.sim.currentRecord();
-    return rec ? rec.totalBiomass.toFixed(0) : '1000';
-  });
-
-  readonly baselineBiomass = computed(() => {
-    const hist = this.sim.history();
-    return hist.length > 0 ? hist[0].totalBiomass : 1000;
-  });
-
-  readonly currentDiversity = computed(() => {
-    const rec = this.sim.currentRecord();
-    return rec ? rec.biodiversityIndex.toFixed(2) : '2.30';
-  });
-
-  readonly extinctCount = computed(() => {
-    const rec = this.sim.currentRecord();
-    return rec ? rec.extinctCount : 0;
-  });
 
   readonly statusDotClass = computed(() => {
     const status = this.sim.ecosystemHealth().status;
@@ -154,21 +144,46 @@ export class MetricsBarComponent {
     }
   });
 
-  readonly biomassDeltaText = computed(() => {
-    const curr = Number(this.currentBiomass());
-    const base = this.baselineBiomass();
-    if (!base || base === 0) return '';
-    const diff = curr - base;
-    const pct = ((diff / base) * 100).toFixed(0);
-    return diff >= 0 ? `(+${pct}%)` : `(${pct}%)`;
-  });
+  readonly plainEnglishStatus = computed(() => {
+    const rec = this.sim.currentRecord();
+    const scenario = this.sim.activeScenarioId();
 
-  readonly biomassDeltaClass = computed(() => {
-    const curr = Number(this.currentBiomass());
-    const base = this.baselineBiomass();
-    const diff = curr - base;
-    if (diff > 10) return 'text-emerald-400';
-    if (diff < -15) return 'text-red-400';
-    return 'text-slate-400';
+    if (!rec || rec.step === 0) {
+      if (scenario === 'apex_removal') {
+        return 'Shark removed: Hit "Run Simulation" to see if Striped Bass mesopredator release occurs.';
+      }
+      if (scenario === 'targeted_overfishing') {
+        return 'Striped Bass overfished: Hit "Run Simulation" to see if forage fish and crabs expand.';
+      }
+      if (scenario === 'reduced_primary_production') {
+        return 'Phytoplankton depleted: Hit "Run Simulation" to see food shortage cascade upward.';
+      }
+      if (scenario === 'marine_heatwave') {
+        return 'Heatwave (+3.2°C): Hit "Run Simulation" to see thermal stress on copepods & seals.';
+      }
+      return 'Equilibrium: All 10 marine species are in balance. Click any preset or organism to test an ecosystem change.';
+    }
+
+    if (rec.extinctCount >= 1) {
+      return `Warning: ${rec.extinctCount} species extirpated from ecosystem. Energy pathways disrupted.`;
+    }
+
+    const shark = rec.populations.apex_shark ?? 0;
+    const bass = rec.populations.predatory_fish ?? 0;
+    const forage = rec.populations.forage_fish ?? 0;
+
+    if (shark < 15 && bass > 125) {
+      return `Mesopredator Release: Striped Bass surged (+${Math.round(bass - 100)}%), overgrazing Forage Fish (${Math.round(forage - 100)}%).`;
+    }
+
+    if (bass < 50 && forage > 120) {
+      return `Predation Release: Forage Fish rebounded (+${Math.round(forage - 100)}%) due to low predatory bass pressure.`;
+    }
+
+    if (forage < 50) {
+      return `Forage Fish Depleted: Low forage fish abundance threatens marine birds and seals.`;
+    }
+
+    return `Simulating step ${rec.step}: Populations dynamic across 5 trophic levels.`;
   });
 }
